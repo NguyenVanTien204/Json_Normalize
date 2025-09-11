@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "normalize-json"
+version = "0.1.0"
+description = "A JSON normalization and relational mapping tool"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+  {name="Nguyen Van Tien", email="vantiennguyen1424@gmail.com"},
+]
+requires-python = ">=3.8"
+
+dependencies = [
+  "pandas>=1.5",
+]
+
+[project.urls]
+Homepage = "https://github.com/NguyenVanTien204/Json_Normalize"
