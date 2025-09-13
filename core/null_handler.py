@@ -1,73 +1,40 @@
 import math
 from typing import Any
 
-def normalize_nulls(data: Any):
+def normalize_nulls(data, replace_null=False, null_value="Null"):
     """
-    Deep-normalize null-like values to None and align keys for nested lists of dicts.
-
-    Behavior:
-    - Treats None, NaN, and strings "null", "none", "" (case-insensitive, trimmed) as None.
-    - If encountering a list where every element is a dict, it will collect the union
-      of keys across those dicts and ensure each dict has all keys (missing -> None).
-    - Works for top-level dict or list[dict], and for any nested structure (recursive).
-    - Empty lists are preserved as [].
+    Normalize null values and handle missing fields.
 
     Args:
-        data (Any): The input data to normalize.
+        data (any): Input data (dict, list, or primitive).
+        replace_null (bool): If True, replace None/null with `null_value`.
+                             If False, keep None.
+        null_value (any): Value to replace nulls with (e.g., "Null", float('nan')).
 
     Returns:
-        Any: The normalized data.
+        any: Normalized data.
     """
-    def is_null_like(v):
-        if v is None:
-            return True
-        if isinstance(v, float) and math.isnan(v):
-            return True
-        if isinstance(v, str) and v.strip().lower() in {"null", "none", ""}:
-            return True
-        return False
 
-    def deep_normalize(v):
-        # Null-like -> None
-        if is_null_like(v):
-            return None
-        # Dict -> normalize values recursively
-        if isinstance(v, dict):
-            return {k: deep_normalize(val) for k, val in v.items()}
-        # List -> special handling for list-of-dicts (align keys), otherwise normalize elements
-        if isinstance(v, list):
-            if not v:
-                return []  # preserve empty lists
-            if all(isinstance(item, dict) for item in v):
-                # collect union keys across all dict items
-                all_keys = set()
-                for item in v:
-                    all_keys.update(item.keys())
-                normalized_items = []
-                for item in v:
-                    new_item = {}
-                    for k in all_keys:
-                        new_item[k] = deep_normalize(item.get(k, None))
-                    normalized_items.append(new_item)
-                return normalized_items
-            else:
-                # mixed list or primitive list -> normalize each element
-                return [deep_normalize(item) for item in v]
-        # other types -> return as-is
-        return v
+    if data is None:
+        return null_value if replace_null else None
 
-    # If top-level is list of dicts, align top-level keys across records
-    if isinstance(data, list) and all(isinstance(d, dict) for d in data):
-        all_keys = set()
-        for record in data:
-            all_keys.update(record.keys())
-        normalized = []
-        for record in data:
-            new_record = {}
-            for key in all_keys:
-                new_record[key] = deep_normalize(record.get(key, None))
-            normalized.append(new_record)
-        return normalized
+    if isinstance(data, list):
+        normalized_list = []
+        for item in data:
+            normalized = normalize_nulls(item, replace_null, null_value)
+            # Bỏ qua dict rỗng hoặc list rỗng để tránh noise
+            if normalized != {} and normalized != []:
+                normalized_list.append(normalized)
+        return normalized_list
 
-    # otherwise deep-normalize whatever structure we have
-    return deep_normalize(data)
+    if isinstance(data, dict):
+        normalized_dict = {}
+        for k, v in data.items():
+            normalized = normalize_nulls(v, replace_null, null_value)
+            # Nếu là dict rỗng thì thay bằng None/null_value
+            if normalized == {} or normalized == []:
+                normalized = null_value if replace_null else None
+            normalized_dict[k] = normalized
+        return normalized_dict
+
+    return data

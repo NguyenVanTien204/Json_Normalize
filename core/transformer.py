@@ -32,7 +32,7 @@ except ImportError:
 
 def normalize_json(obj, sep=".", explode_arrays=False, flatten_nested=False,
                   schema=None, key_convention='snake', output_format="dataframe",
-                  config=None, extract_relations=True, fk_name="parent_id"):
+                  config=None, extract_relations=True, fk_name="parent_id", null_value=""):
     """
     Normalize a JSON object with comprehensive options and error handling.
 
@@ -94,7 +94,10 @@ def normalize_json(obj, sep=".", explode_arrays=False, flatten_nested=False,
                 log_processing_step("Extracted relations from multiple records", {"relations_count": len(relations)})
 
         # Normalize nulls
-        normalized = normalize_nulls(flattened)
+        if null_value != "":
+            normalized = normalize_nulls(flattened, replace_null= True, null_value=null_value)
+        else:
+            normalized = normalize_nulls(flattened)
 
         # Normalize keys
         if key_convention != 'keep':
@@ -118,7 +121,15 @@ def normalize_json(obj, sep=".", explode_arrays=False, flatten_nested=False,
             if not PANDAS_AVAILABLE:
                 handle_error(ImportError("pandas is required for DataFrame output"), "output_format")
             else:
-                return pd.DataFrame(normalized)
+                if extract_relations and relations:
+                    # Return dict of DataFrames (main + relation tables)
+                    result = {"main": pd.DataFrame(normalized)}
+                    for table_name, records in relations.items():
+                        result[table_name] = pd.DataFrame(records) if records else pd.DataFrame()
+                    return result
+                else:
+                    # Return single DataFrame for main data
+                    return pd.DataFrame(normalized)
         elif output_format == "relational":
             # Return both main data and relations
             return {
